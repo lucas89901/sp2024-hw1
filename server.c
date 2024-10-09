@@ -1,5 +1,12 @@
 #include "server.h"
 
+Server svr;                // server
+Request* requests = NULL;  // point to a list of requests
+TrainInfo trains[TRAIN_NUM];
+int maxfd;  // size of open file descriptor table, size of request list
+int num_conn = 1;
+int alive_conn = 0;
+
 const unsigned char IAC_IP[3] = "\xff\xf4";
 const char* file_prefix = "./csie_trains/train_";
 const char* accept_read_header = "ACCEPT_FROM_READ";
@@ -26,28 +33,28 @@ char* write_seat_msg = "Select the seat [1-40] or type \"pay\" to confirm: ";
 char* write_seat_or_exit_msg = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
 #endif
 
-static void init_server(unsigned short port);
 // initailize a server, exit for error
+static void init_server(unsigned short port);
 
-static void init_request(request* reqP);
 // initailize a request instance
+static void init_request(Request* req);
 
-static void free_request(request* reqP);
 // free resources used by a request instance
+static void free_request(Request* req);
 
-int accept_conn(void);
 // accept connection
+int accept_conn(void);
 
-static void getfilepath(char* filepath, int extension);
 // get record filepath
+static void getfilepath(char* filepath, int extension);
 
-int handle_read(request* reqP) {
-    /*  Return value:
-     *      1: read successfully
-     *      0: read EOF (client down)
-     *     -1: read failed
-     *   TODO: handle incomplete input
-     */
+/*  Return value:
+ *      1: read successfully
+ *      0: read EOF (client down)
+ *     -1: read failed
+ *   TODO: handle incomplete input
+ */
+int handle_read(Request* req) {
     int r;
     char buf[MAX_MSG_LEN];
     size_t len;
@@ -55,7 +62,7 @@ int handle_read(request* reqP) {
     memset(buf, 0, sizeof(buf));
 
     // Read in request from client
-    r = read(reqP->conn_fd, buf, sizeof(buf));
+    r = read(req->conn_fd, buf, sizeof(buf));
     if (r < 0) return -1;
     if (r == 0) return 0;
     char* p1 = strstr(buf, "\015\012");  // \r\n
@@ -71,14 +78,14 @@ int handle_read(request* reqP) {
     }
 
     len = p1 - buf + 1;
-    memmove(reqP->buf, buf, len);
-    reqP->buf[len - 1] = '\0';
-    reqP->buf_len = len - 1;
+    memmove(req->buf, buf, len);
+    req->buf[len - 1] = '\0';
+    req->buf_len = len - 1;
     return 1;
 }
 
 #ifdef READ_SERVER
-int print_train_info(request* reqP) {
+int print_train_info(Request* req) {
     int i;
     char buf[MAX_MSG_LEN];
 
@@ -89,7 +96,7 @@ int print_train_info(request* reqP) {
     return 0;
 }
 #else
-int print_train_info(request* reqP) {
+int print_train_info(Request* req) {
     /*
      * Booking info
      * |- Shift ID: 902001
@@ -122,7 +129,6 @@ int main(int argc, char** argv) {
     char buf[MAX_MSG_LEN * 2], filename[FILE_LEN];
 
     int i, j;
-
     for (i = TRAIN_ID_START, j = 0; i <= TRAIN_ID_END; i++, j++) {
         getfilepath(filename, i);
 #ifdef READ_SERVER
@@ -139,11 +145,10 @@ int main(int argc, char** argv) {
 
     // Initialize server
     init_server((unsigned short)atoi(argv[1]));
-
-    // Loop for handling connections
     fprintf(stderr, "\nstarting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd,
             maxfd);
 
+    // Loop for handling connections
     while (1) {
         // TODO: Add IO multiplexing
 
@@ -151,9 +156,9 @@ int main(int argc, char** argv) {
         conn_fd = accept_conn();
         if (conn_fd < 0) continue;
 
-        int ret = handle_read(&requestP[conn_fd]);
+        int ret = handle_read(&requests[conn_fd]);
         if (ret < 0) {
-            fprintf(stderr, "bad request from %s\n", requestP[conn_fd].host);
+            fprintf(stderr, "bad request from %s\n", requests[conn_fd].host);
             continue;
         }
 
@@ -166,11 +171,11 @@ int main(int argc, char** argv) {
         write(requestP[conn_fd].conn_fd, buf, strlen(buf));
 #endif
 
-        close(requestP[conn_fd].conn_fd);
-        free_request(&requestP[conn_fd]);
+        close(requests[conn_fd].conn_fd);
+        free_request(&requests[conn_fd]);
     }
 
-    free(requestP);
+    free(requests);
     close(svr.listen_fd);
     for (i = 0; i < TRAIN_NUM; i++) close(trains[i].file_fd);
 
@@ -193,10 +198,10 @@ int accept_conn(void) {
         ERR_EXIT("accept");
     }
 
-    requestP[conn_fd].conn_fd = conn_fd;
-    strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
-    fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
-    requestP[conn_fd].client_id = (svr.port * 1000) + num_conn;  // This should be unique for the same machine.
+    requests[conn_fd].conn_fd = conn_fd;
+    strcpy(requests[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
+    fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requests[conn_fd].host);
+    requests[conn_fd].client_id = (svr.port * 1000) + num_conn;  // This should be unique for the same machine.
     num_conn++;
 
     return conn_fd;
@@ -214,22 +219,22 @@ static void getfilepath(char* filepath, int extension) {
 // You don't need to know how the following codes are working
 #include <fcntl.h>
 
-static void init_request(request* reqP) {
-    reqP->conn_fd = -1;
-    reqP->client_id = -1;
-    reqP->buf_len = 0;
-    reqP->status = INVALID;
-    reqP->remaining_time.tv_sec = 5;
-    reqP->remaining_time.tv_usec = 0;
+static void init_request(Request* req) {
+    req->conn_fd = -1;
+    req->client_id = -1;
+    req->buf_len = 0;
+    req->status = INVALID;
+    req->remaining_time.tv_sec = 5;
+    req->remaining_time.tv_usec = 0;
 
-    reqP->booking_info.num_of_chosen_seats = 0;
-    reqP->booking_info.train_fd = -1;
-    for (int i = 0; i < SEAT_NUM; i++) reqP->booking_info.seat_stat[i] = UNKNOWN;
+    req->booking_info.num_chosen_seats = 0;
+    req->booking_info.train_fd = -1;
+    for (int i = 0; i < SEAT_NUM; i++) req->booking_info.seat_stat[i] = UNKNOWN;
 }
 
-static void free_request(request* reqP) {
-    memset(reqP, 0, sizeof(request));
-    init_request(reqP);
+static void free_request(Request* req) {
+    memset(req, 0, sizeof(Request));
+    init_request(req);
 }
 
 static void init_server(unsigned short port) {
@@ -259,15 +264,13 @@ static void init_server(unsigned short port) {
 
     // Get file descripter table size and initialize request table
     maxfd = getdtablesize();
-    requestP = (request*)malloc(sizeof(request) * maxfd);
-    if (requestP == NULL) {
+    requests = (Request*)malloc(sizeof(Request) * maxfd);
+    if (requests == NULL) {
         ERR_EXIT("out of memory allocating all requests");
     }
     for (int i = 0; i < maxfd; i++) {
-        init_request(&requestP[i]);
+        init_request(&requests[i]);
     }
-    requestP[svr.listen_fd].conn_fd = svr.listen_fd;
-    strcpy(requestP[svr.listen_fd].host, svr.hostname);
-
-    return;
+    requests[svr.listen_fd].conn_fd = svr.listen_fd;
+    strcpy(requests[svr.listen_fd].host, svr.hostname);
 }
