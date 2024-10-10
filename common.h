@@ -2,6 +2,8 @@
 #define COMMON_H_
 
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #define ERR_EXIT(a) \
@@ -17,5 +19,10 @@
 
 #define FILE_LEN 50
 #define MAX_MSG_LEN 512
+
+#define DEBUG(...)                                   \
+    fprintf(stderr, "[%s:%d] ", __FILE__, __LINE__); \
+    fprintf(stderr, __VA_ARGS__);                    \
+    fprintf(stderr, "\n")
 
 #endif  // COMMON_H_

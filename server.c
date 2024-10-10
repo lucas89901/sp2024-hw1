@@ -13,31 +13,19 @@
 #include "common.h"
 #include "request.h"
 
-static const unsigned char IAC_IP[3] = "\xff\xf4";
+#ifdef READ_SERVER
+#include "read.h"
+#elif defined WRITE_SERVER
+#include "write.h"
+#else
+#error "You must define one of READ_SERVER or WRITE_SERVER"
+#endif
+
 static const char* FILE_PREFIX = "./csie_trains/train_";
-static const char* ACCEPT_READ_HEADER = "ACCEPT_FROM_READ";
-static const char* ACCEPT_WRITE_HEADER = "ACCEPT_FROM_WRITE";
 static const char* WELCOME_BANNER =
     "======================================\n"
     " Welcome to CSIE Train Booking System \n"
     "======================================\n";
-
-static const char* LOCK_MSG = ">>> Locked.\n";
-static const char* EXIT_MSG = ">>> Client exit.\n";
-static const char* CANCEL_MSG = ">>> You cancel the seat.\n";
-static const char* FULL_MSG = ">>> The shift is fully booked.\n";
-static const char* SEAT_BOOKED_MSG = ">>> The seat is booked.\n";
-static const char* NO_SEAT_MSG = ">>> No seat to pay.\n";
-static const char* BOOK_SUCC_MSG = ">>> Your train booking is successful.\n";
-static const char* INVALID_OP_MSG = ">>> Invalid operation.\n";
-
-#ifdef READ_SERVER
-static char* READ_SHIFT_MSG = "Please select the shift you want to check [902001-902005]: ";
-#elif defined WRITE_SERVER
-static char* WRITE_SHIFT_MSG = "Please select the shift you want to book [902001-902005]: ";
-static char* WRITE_SEAT_MSG = "Select the seat [1-40] or type \"pay\" to confirm: ";
-static char* WRITE_SEAT_OR_EXIT_MSG = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
-#endif
 
 // initailize a server, exit for error
 static void init_server(Server* svr, unsigned short port, Request* requests) {
@@ -73,7 +61,9 @@ static void init_server(Server* svr, unsigned short port, Request* requests) {
     fprintf(stderr, "Starting server on %.80s, port %d, fd %d...\n", svr->hostname, svr->port, svr->listen_fd);
 }
 
-// accept connection
+// Accepts a new connection.
+// Returns the file descriptor used to communicate with the connection, or -1
+// if an error has occurred.
 static int accept_conn(Server* svr, Request* requests, int* num_conn) {
     struct sockaddr_in cliaddr;
     size_t clilen = sizeof(cliaddr);
@@ -96,74 +86,6 @@ static int accept_conn(Server* svr, Request* requests, int* num_conn) {
     (*num_conn)++;
     return conn_fd;
 }
-
-/*  Return value:
- *      1: read successfully
- *      0: read EOF (client down)
- *     -1: read failed
- *   TODO: handle incomplete input
- */
-int handle_read(Request* req) {
-    char buf[MAX_MSG_LEN];
-    memset(buf, 0, sizeof(buf));
-    size_t len;
-
-    // Read in request from client
-    int r = read(req->conn_fd, buf, sizeof(buf));
-    if (r < 0) return -1;
-    if (r == 0) return 0;
-    char* p1 = strstr(buf, "\r\n");  // \r\n
-    if (p1 == NULL) {
-        p1 = strstr(buf, "\n");  // \n
-        if (p1 == NULL) {
-            if (!strncmp(buf, IAC_IP, 2)) {
-                // Client presses ctrl+C, regard as disconnection
-                fprintf(stderr, "Client presses ctrl+C....\n");
-                return 0;
-            }
-        }
-    }
-
-    len = p1 - buf + 1;
-    memmove(req->buf, buf, len);
-    req->buf[len - 1] = '\0';
-    req->buf_len = len - 1;
-    return 1;
-}
-
-#ifdef READ_SERVER
-int print_train_info(Request* req) {
-    int i;
-    char buf[MAX_MSG_LEN];
-
-    memset(buf, 0, sizeof(buf));
-    for (i = 0; i < SEAT_NUM / 4; i++) {
-        sprintf(buf + (i * 4 * 2), "%d %d %d %d\n", 0, 0, 0, 0);
-    }
-    return 0;
-}
-#else
-int print_train_info(Request* req) {
-    /*
-     * Booking info
-     * |- Shift ID: 902001
-     * |- Chose seat(s): 1,2
-     * |- Paid: 3,4
-     */
-    char buf[MAX_MSG_LEN * 3];
-    char chosen_seat[MAX_MSG_LEN] = "1,2";
-    char paid[MAX_MSG_LEN] = "3,4";
-
-    memset(buf, 0, sizeof(buf));
-    sprintf(buf,
-            "\nBooking info\n"
-            "|- Shift ID: %d\n"
-            "|- Chose seat(s): %s\n"
-            "|- Paid: %s\n\n",
-            902001, chosen_seat, paid);
-    return 0;
-}
-#endif
 
 int main(int argc, char** argv) {
     // Parse args.
@@ -206,31 +128,24 @@ int main(int argc, char** argv) {
     init_server(&svr, (unsigned short)atoi(argv[1]), requests);
     int num_conn = 1;
 
-    char buf[MAX_MSG_LEN * 2];
     // Loop for handling connections
     while (1) {
         // TODO: Add IO multiplexing
 
-        // Check new connection
+        // Check for new connections.
         int conn_fd = accept_conn(&svr, requests, &num_conn);
         if (conn_fd < 0) {
             continue;
         }
 
-        int ret = handle_read(&requests[conn_fd]);
-        if (ret < 0) {
-            fprintf(stderr, "bad request from %s\n", requests[conn_fd].host);
-            continue;
-        }
-
-        // TODO: handle requests from clients
+        write(conn_fd, WELCOME_BANNER, 118);
+        int ret;
 #ifdef READ_SERVER
-        sprintf(buf, "%s : %s", ACCEPT_READ_HEADER, requests[conn_fd].buf);
-        write(conn_fd, buf, strlen(buf));
+        ret = handle_read_request(&requests[conn_fd], shift_fds);
 #elif defined WRITE_SERVER
-        sprintf(buf, "%s : %s", ACCEPT_WRITE_HEADER, requests[conn_fd].buf);
-        write(conn_fd, buf, strlen(buf));
+        ret = handle_write_request(&requests[conn_fd], shift_fds);
 #endif
+        DEBUG("handle_request=%d", ret);
 
         close(conn_fd);
         init_request(&requests[conn_fd]);

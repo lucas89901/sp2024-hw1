@@ -14,6 +14,7 @@ void init_request(Request* req) {
 
     req->num_chosen_seats = 0;
     req->shift_id = -1;
+    req->shift_fd = -1;
     for (int i = 0; i < SEAT_NUM; i++) {
         req->seats[i] = UNKNOWN;
     }

@@ -14,9 +14,10 @@ typedef enum RequestStatus {
 } RequestStatus;
 
 typedef enum SeatStatus {
-    UNKNOWN,  // Seat is unknown
-    CHOSEN,   // Seat is currently being reserved
-    PAID,     // Seat is already paid for
+    UNKNOWN,    // Seat is unknown
+    AVAILABLE,  // Seat is available
+    CHOSEN,     // Seat is currently being reserved
+    PAID,       // Seat is already paid for
 } SeatStatus;
 
 typedef struct Request {
@@ -29,9 +30,10 @@ typedef struct Request {
 
     RequestStatus status;  // request status
 
-    int shift_id;                // shift id 902001-902005
-    int num_chosen_seats;        // num of chosen seats
-    SeatStatus seats[SEAT_NUM];  // seat status
+    int shift_id;  // [0, 4]
+    int shift_fd;
+    int num_chosen_seats;            // num of chosen seats
+    SeatStatus seats[SEAT_NUM + 1];  // seat status
 
     struct timeval remaining_time;  // connection remaining time
 } Request;
