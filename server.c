@@ -11,16 +11,9 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "io.h"
 #include "request.h"
 #include "shift.h"
-
-#ifdef READ_SERVER
-#include "read.h"
-#elif defined WRITE_SERVER
-#include "write.h"
-#else
-#error "You must define one of READ_SERVER or WRITE_SERVER"
-#endif
 
 static const char* FILE_PREFIX = "./csie_trains/train_";
 static const char* WELCOME_BANNER =
@@ -143,13 +136,8 @@ int main(int argc, char** argv) {
         }
 
         write(conn_fd, WELCOME_BANNER, 118);
-        int ret;
-#ifdef READ_SERVER
-        ret = handle_read_request(&requests[conn_fd], shifts);
-#elif defined WRITE_SERVER
-        ret = handle_write_request(&requests[conn_fd], shifts);
-#endif
-        DEBUG("handle_request=%d", ret);
+        int ret = handle_request(&requests[conn_fd], shifts);
+        DEBUG("handle_request ret=%d", ret);
 
         close(conn_fd);
         cleanup_request(&requests[conn_fd]);

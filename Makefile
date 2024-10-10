@@ -2,7 +2,7 @@ all: read_server write_server
 
 .PHONY: all clean
 
-HDRS = common.h io.h read.h request.h server.h shift.h
+HDRS = common.h io.h request.h server.h shift.h
 SERVER_SRCS = server.c
 SERVER_DEPS = io.o request.o shift.o
 $(SERVER_DEPS): $(HDRS)  # Rebuild everything if any header is modified

@@ -1,5 +1,3 @@
-#include "read.h"
-
 #include <string.h>
 #include <unistd.h>
 
@@ -10,7 +8,7 @@
 
 #define SHIFT_INFO_LEN 80
 
-int handle_read_request(Request* const req, Shift* const shifts) {
+int handle_request(Request* const req, Shift* const shifts) {
     int ret;
     while (1) {
         WRITE(req->conn_fd, READ_SHIFT_MSG, 60);

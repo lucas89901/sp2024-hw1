@@ -1,5 +1,3 @@
-#include "write.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +25,7 @@ static int print_booking_info(Request* const req) {
     return 0;
 }
 
-int handle_write_request(Request* const req, Shift* const shifts) {
+int handle_request(Request* const req, Shift* const shifts) {
     while (1) {  // Select a shift.
         WRITE(req->conn_fd, WRITE_SHIFT_MSG, 59);
 

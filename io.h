@@ -37,6 +37,9 @@ void print_shift(char* buf, const Request* req);
 // occurred.
 int read_command(Request* req);
 
+// Handle read or write requests, depending on which object you link to.
+int handle_request(Request* req, Shift* shifts);
+
 #define READ_COMMAND(req)                  \
     do {                                   \
         int ret = read_command(req);       \
