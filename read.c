@@ -4,12 +4,9 @@
 #include <unistd.h>
 
 #include "common.h"
-#include "input.h"
+#include "io.h"
 #include "request.h"
 #include "shift.h"
-
-static const char* const INVALID_OP_MSG = ">>> Invalid operation.\n";
-static const char* const READ_SHIFT_MSG = "Please select the shift you want to check [902001-902005]: ";
 
 int handle_read_request(Request* const req, const int* const shift_fds) {
     while (1) {

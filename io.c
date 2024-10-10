@@ -1,12 +1,26 @@
-#include "input.h"
+#include "io.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #include "request.h"
 
-static const char* const EXIT_MSG = ">>> Client exit.\n";
 static const unsigned char IAC_IP[3] = "\xff\xf4";
+
+const char* const INVALID_OP_MSG = ">>> Invalid operation.\n";
+const char* const EXIT_MSG = ">>> Client exit.\n";
+
+const char* const FULL_MSG = ">>> The shift is fully booked.\n";
+const char* const LOCK_MSG = ">>> Locked.\n";
+const char* const SEAT_BOOKED_MSG = ">>> The seat is booked.\n";
+const char* const CANCEL_MSG = ">>> You cancel the seat.\n";
+const char* const NO_SEAT_MSG = ">>> No seat to pay.\n";
+const char* const BOOK_SUCC_MSG = ">>> Your train booking is successful.\n";
+
+const char* const READ_SHIFT_MSG = "Please select the shift you want to check [902001-902005]: ";
+const char* const WRITE_SHIFT_MSG = "Please select the shift you want to book [902001-902005]: ";
+const char* const WRITE_SEAT_MSG = "Select the seat [1-40] or type \"pay\" to confirm: ";
+const char* const WRITE_SEAT_OR_EXIT_MSG = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
 
 // Reads from the conenction, and moves the data read into `req->buf`.
 // Returns 1 if data is successfully read, 0 if reached EOF (meaning client is down), and -1 if an error has occurred.

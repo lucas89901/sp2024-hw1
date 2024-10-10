@@ -4,19 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "input.h"
+#include "io.h"
 #include "shift.h"
-
-static const char* const INVALID_OP_MSG = ">>> Invalid operation.\n";
-static const char* const LOCK_MSG = ">>> Locked.\n";
-static const char* const CANCEL_MSG = ">>> You cancel the seat.\n";
-static const char* const FULL_MSG = ">>> The shift is fully booked.\n";
-static const char* const SEAT_BOOKED_MSG = ">>> The seat is booked.\n";
-static const char* const NO_SEAT_MSG = ">>> No seat to pay.\n";
-static const char* const BOOK_SUCC_MSG = ">>> Your train booking is successful.\n";
-static const char* const WRITE_SHIFT_MSG = "Please select the shift you want to book [902001-902005]: ";
-static const char* const WRITE_SEAT_MSG = "Select the seat [1-40] or type \"pay\" to confirm: ";
-static const char* const WRITE_SEAT_OR_EXIT_MSG = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
 
 static int print_booking_info(Request* const req) {
     char buf[1000];

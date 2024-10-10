@@ -2,13 +2,13 @@ all: read_server write_server
 
 .PHONY: all clean
 
-input.o: input.c input.h common.h request.h
-read.o: read.c read.h common.h shift.h input.h request.h
+io.o: io.c io.h common.h request.h
+read.o: read.c read.h common.h shift.h io.h request.h
 request.o: request.c request.h common.h shift.h
 shift.o: shift.c shift.h common.h request.h
-write.o: read.c read.h common.h shift.h input.h request.h
+write.o: read.c read.h common.h shift.h io.h request.h
 
-SERVER_OBJS = request.o input.o shift.o
+SERVER_OBJS = request.o io.o shift.o
 SERVER_DEPS = server.c server.h common.h $(SERVER_OBJS)
 read_server: $(SERVER_DEPS) read.o
 	$(CC) -D READ_SERVER -o read_server server.c $(SERVER_OBJS) read.o
