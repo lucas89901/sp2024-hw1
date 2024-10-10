@@ -3,21 +3,41 @@
 
 #include <stdbool.h>
 
-#include "request.h"
+#include "common.h"
 
-#define SHIFT_INFO_SIZE 81
+typedef struct Request Request;
 
-SeatStatus seat_status(int shift_fd, int seat);
-int join_seats(char* buf, Request* req, SeatStatus status);
+typedef struct Shift {
+    int id;  // [0, SHIFT_NUM]
 
-int reserve_seat(int shift_fd, int seat);
-int unlock_seat(int shift_fd, int seat);
-int pay_seat(int shift_fd, int seat);
+    int fd;  // File descriptor to the file holding the booking info of this shift.
 
-bool shift_is_full(int shift_fd);
-int lock_shift(int shift_fd);
-int unlock_shift(int shift_fd);
+    // Since a process could never test for its own lock via `fcntl()`, we need to maintain a table of seats that are
+    // reserved by requests of this process.
+    int reserver[SEAT_NUM + 1];
 
-int print_shift(const Request* req);
+    int payer[SEAT_NUM + 1];
+} Shift;
+
+typedef enum SeatStatus {
+    kAvailable = 0,
+    kPaid = 1,
+    kReservedByOtherProcess = 2,  // Another process is holding a write lock to the seat.
+    kReservedByThisRequest = 3,
+    kReservedByOtherRequest = 4,
+} SeatStatus;
+
+// Returns the byte in shift record file that corresponds to `seat`. `seat` is an integer in [1, 40].
+off_t seat_to_byte(int seat);
+
+SeatStatus seat_status(const Request* shift, int seat);
+bool shift_is_full(const Request* req);
+
+void reserve_seat(Request* req, int seat);
+void cancel_seat(Request* req, int seat);
+void pay_seat(Request* req, int seat);
+
+// int lock_shift(int shift_fd);
+// int unlock_shift(int shift_fd);
 
 #endif  // SHIFT_H_

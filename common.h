@@ -25,11 +25,25 @@
     fprintf(stderr, __VA_ARGS__);                    \
     fprintf(stderr, "\n")
 
+#define READ(fd, buf, count)            \
+    do {                                \
+        if (read(fd, buf, count) < 0) { \
+            ERR_EXIT("read");           \
+        }                               \
+    } while (0)
+
 #define WRITE(fd, buf, count)            \
     do {                                 \
         if (write(fd, buf, count) < 0) { \
             ERR_EXIT("write");           \
         }                                \
+    } while (0)
+
+#define LSEEK(fd, offset, whence)            \
+    do {                                     \
+        if (lseek(fd, offset, whence) < 0) { \
+            ERR_EXIT("lseek");               \
+        }                                    \
     } while (0)
 
 #endif  // COMMON_H_

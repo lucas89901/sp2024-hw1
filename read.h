@@ -1,8 +1,9 @@
 #ifndef READ_H_
 #define READ_H_
 
-#include "request.h"
+typedef struct Request Request;
+typedef struct Shift Shift;
 
-int handle_read_request(Request* req, const int* shift_fds);
+int handle_read_request(Request* req, Shift* shifts);
 
 #endif  // READ_H_

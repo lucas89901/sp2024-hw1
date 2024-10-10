@@ -1,8 +1,9 @@
 #ifndef WRITE_H_
 #define WRITE_H_
 
-#include "request.h"
+typedef struct Request Request;
+typedef struct Shift Shift;
 
-int handle_write_request(Request* req, const int* shift_fds);
+int handle_write_request(Request* req, Shift* shifts);
 
 #endif  // WRITE_H_

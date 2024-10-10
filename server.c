@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "request.h"
+#include "shift.h"
 
 #ifdef READ_SERVER
 #include "read.h"
@@ -96,21 +97,25 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    // Open file descriptors for shift records.
-    int shift_fds[SHIFT_NUM];
+    Shift* shifts = malloc(sizeof(Shift) * SHIFT_NUM);
     for (int i = 0; i < SHIFT_NUM; i++) {
+        shifts[i].id = i;
+
         char path[FILE_LEN];
         memset(path, 0, FILE_LEN);
         sprintf(path, "%s%d", FILE_PREFIX, SHIFT_ID_START + i);
 #ifdef READ_SERVER
-        shift_fds[i] = open(path, O_RDONLY);
+        shifts[i].fd = open(path, O_RDONLY);
 #elif defined WRITE_SERVER
-        shift_fds[i] = open(path, O_RDWR);
-#else
-        shift_fds[i] = -1;
+        shifts[i].fd = open(path, O_RDWR);
 #endif
-        if (shift_fds[i] < 0) {
+        if (shifts[i].fd < 0) {
             ERR_EXIT("open");
+        }
+
+        for (int j = 1; j <= SEAT_NUM; ++j) {
+            shifts[i].reserver[j] = -1;
+            shifts[i].payer[j] = -1;
         }
     }
 
@@ -140,9 +145,9 @@ int main(int argc, char** argv) {
         write(conn_fd, WELCOME_BANNER, 118);
         int ret;
 #ifdef READ_SERVER
-        ret = handle_read_request(&requests[conn_fd], shift_fds);
+        ret = handle_read_request(&requests[conn_fd], shifts);
 #elif defined WRITE_SERVER
-        ret = handle_write_request(&requests[conn_fd], shift_fds);
+        ret = handle_write_request(&requests[conn_fd], shifts);
 #endif
         DEBUG("handle_request=%d", ret);
 
@@ -150,11 +155,12 @@ int main(int argc, char** argv) {
         cleanup_request(&requests[conn_fd]);
     }
 
-    free(requests);
     close(svr.listen_fd);
     for (int i = 0; i < SHIFT_NUM; i++) {
-        close(shift_fds[i]);
+        close(shifts[i].fd);
     }
+    free(shifts);
+    free(requests);
 
     return 0;
 }

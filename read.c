@@ -8,19 +8,24 @@
 #include "request.h"
 #include "shift.h"
 
-int handle_read_request(Request* const req, const int* const shift_fds) {
+#define SHIFT_INFO_LEN 80
+
+int handle_read_request(Request* const req, Shift* const shifts) {
     int ret;
     while (1) {
         WRITE(req->conn_fd, READ_SHIFT_MSG, 60);
 
         READ_COMMAND(req);
-        req->shift_id = shift_str_to_id(req->buf, req->buf_len);
-        if (req->shift_id < 0) {
+        int shift_id = shift_str_to_id(req->buf, req->buf_len);
+        if (shift_id < 0) {
             WRITE(req->conn_fd, INVALID_OP_MSG, 24);
             return -1;
         }
-        req->shift_fd = shift_fds[req->shift_id];
+        req->shift = &shifts[shift_id];
 
-        print_shift(req);
+        char buf[SHIFT_INFO_LEN];
+        memset(buf, 0, SHIFT_INFO_LEN);
+        print_shift(buf, req);
+        WRITE(req->conn_fd, buf, SHIFT_INFO_LEN);
     }
 }
