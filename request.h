@@ -41,4 +41,6 @@ typedef struct Request {
 // initailize a request instance
 void init_request(Request* req);
 
+void cleanup_request(Request* req);
+
 #endif  // REQUEST_H_

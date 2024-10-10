@@ -55,6 +55,7 @@ static void init_server(Server* svr, unsigned short port, Request* requests) {
         ERR_EXIT("listen");
     }
 
+    init_request(&requests[svr->listen_fd]);
     requests[svr->listen_fd].conn_fd = svr->listen_fd;
     strcpy(requests[svr->listen_fd].host, svr->hostname);
 
@@ -79,6 +80,7 @@ static int accept_conn(Server* svr, Request* requests, int* num_conn) {
         ERR_EXIT("accept");
     }
 
+    init_request(&requests[conn_fd]);
     requests[conn_fd].conn_fd = conn_fd;
     strcpy(requests[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
     fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requests[conn_fd].host);
@@ -118,9 +120,6 @@ int main(int argc, char** argv) {
     if (requests == NULL) {
         ERR_EXIT("out of memory allocating all requests");
     }
-    for (int i = 0; i < maxfd; i++) {
-        init_request(&requests[i]);
-    }
     fprintf(stderr, "Initalized request array, maxconn=%d\n", maxfd);
 
     // Initialize server
@@ -148,7 +147,7 @@ int main(int argc, char** argv) {
         DEBUG("handle_request=%d", ret);
 
         close(conn_fd);
-        init_request(&requests[conn_fd]);
+        cleanup_request(&requests[conn_fd]);
     }
 
     free(requests);

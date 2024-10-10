@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "shift.h"
+
 void init_request(Request* req) {
     memset(req, 0, sizeof(Request));
 
@@ -18,4 +20,15 @@ void init_request(Request* req) {
     for (int i = 0; i < SEAT_NUM; i++) {
         req->seats[i] = UNKNOWN;
     }
+}
+
+void cleanup_request(Request* req) {
+    int ret;
+    for (int i = 1; i <= SEAT_NUM; ++i) {
+        if (req->seats[i] == CHOSEN) {
+            ret = unlock_seat(req->shift_fd, i);
+            req->seats[i] = AVAILABLE;
+        }
+    }
+    DEBUG("ret=%d", ret);
 }

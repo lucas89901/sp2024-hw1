@@ -15,7 +15,7 @@ static off_t seat_to_byte(const int seat) { return 2 * (seat - 1); }
 static bool seat_is_reserved(const int shift_fd, const int seat) {
     off_t pos = seat_to_byte(seat);
     struct flock flock;
-    flock.l_type = F_RDLCK;
+    flock.l_type = F_WRLCK;
     flock.l_whence = SEEK_SET;
     flock.l_start = pos;
     flock.l_len = 1;
@@ -142,6 +142,30 @@ bool shift_is_full(const int shift_fd) {
         }
     }
     return true;
+}
+
+int lock_shift(const int shift_fd) {
+    struct flock flock;
+    flock.l_type = F_RDLCK;
+    flock.l_whence = SEEK_SET;
+    flock.l_start = 0;
+    flock.l_len = 0;
+    if (fcntl(shift_fd, F_SETLK, &flock) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+int unlock_shift(const int shift_fd) {
+    struct flock flock;
+    flock.l_type = F_UNLCK;
+    flock.l_whence = SEEK_SET;
+    flock.l_start = 0;
+    flock.l_len = 0;
+    if (fcntl(shift_fd, F_SETLK, &flock) < 0) {
+        return -1;
+    }
+    return 0;
 }
 
 int print_shift(const Request* const req) {

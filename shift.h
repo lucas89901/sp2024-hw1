@@ -17,6 +17,8 @@ int pay_seat(int shift_fd, int seat);
 
 bool is_valid_shift(const char* s, int len);
 bool shift_is_full(int shift_fd);
+int lock_shift(int shift_fd);
+int unlock_shift(int shift_fd);
 
 int print_shift(const Request* req);
 
