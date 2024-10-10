@@ -100,40 +100,6 @@ int join_seats(char* buf, Request* const req, SeatStatus status) {
     buf[pos] = '\0';
 }
 
-static bool is_valid_seat(const char* const s, const int len) {
-    switch (len) {
-        case 1:
-            return '1' <= s[0] && s[0] <= '9';
-        case 2:
-            switch (s[0]) {
-                case '1':
-                case '2':
-                case '3':
-                    return '0' <= s[1] && s[1] <= '9';
-                case '4':
-                    return s[1] == '0';
-            }
-    }
-    return false;
-}
-
-int seat_to_int(const char* const s, const int len) {
-    if (!is_valid_seat(s, len)) {
-        return -1;
-    }
-    switch (len) {
-        case 1:
-            return s[0] - '0';
-        case 2:
-            return 10 * (s[0] - '0') + (s[1] - '0');
-    }
-    return -1;
-}
-
-bool is_valid_shift(const char* const s, const int len) {
-    return len == 6 && strncmp(s, "90200", 5) == 0 && '1' <= s[5] && s[5] <= '5';
-}
-
 bool shift_is_full(const int shift_fd) {
     for (int i = 1; i <= SEAT_NUM; ++i) {
         SeatStatus status = seat_status(shift_fd, i);

@@ -25,4 +25,11 @@
     fprintf(stderr, __VA_ARGS__);                    \
     fprintf(stderr, "\n")
 
+#define WRITE(fd, buf, count)            \
+    do {                                 \
+        if (write(fd, buf, count) < 0) { \
+            ERR_EXIT("write");           \
+        }                                \
+    } while (0)
+
 #endif  // COMMON_H_

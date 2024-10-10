@@ -1,6 +1,7 @@
 #include "io.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "request.h"
@@ -22,10 +23,44 @@ const char* const WRITE_SHIFT_MSG = "Please select the shift you want to book [9
 const char* const WRITE_SEAT_MSG = "Select the seat [1-40] or type \"pay\" to confirm: ";
 const char* const WRITE_SEAT_OR_EXIT_MSG = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
 
-// Reads from the conenction, and moves the data read into `req->buf`.
-// Returns the number of bytes copied in to the buffer if successful, 0 if reached EOF (meaning client is down), and -1
-// if an error has occurred.
-int handle_input(Request* req) {
+int shift_str_to_id(const char* const s, const int len) {
+    if (len != 6) {
+        return -1;
+    }
+
+    errno = 0;
+    char* end;
+    int shift = strtol(s, &end, 10);
+    if (errno != 0 || end != s + len) {
+        return -1;
+    }
+
+    shift -= SHIFT_ID_START;
+    if (shift < 0 || shift >= SHIFT_NUM) {
+        return -1;
+    }
+    return shift;
+}
+
+int seat_str_to_int(const char* const s, const int len) {
+    if (len > 2) {
+        return -1;
+    }
+
+    errno = 0;
+    char* end;
+    int seat = strtol(s, &end, 10);
+    if (errno != 0 || end != s + len) {
+        return -1;
+    }
+
+    if (seat < 1 || seat > SEAT_NUM) {
+        return -1;
+    }
+    return seat;
+}
+
+int read_command(Request* req) {
     char buf[MAX_MSG_LEN];
     memset(buf, 0, sizeof(buf));
     int len = 0;
@@ -47,7 +82,7 @@ int handle_input(Request* req) {
             --len;  // Discard '\n'
             break;
         }
-        if (len >= 2 && strncmp(buf + len - ret, IAC_IP, 2) == 0) {
+        if (ret == 5 && strncmp(buf + len - ret, IAC_IP, 2) == 0) {
             // Client presses ctrl+C, regard as disconnection
             DEBUG("Client pressed Ctrl+C....");
             return 0;
@@ -68,10 +103,8 @@ int handle_input(Request* req) {
     DEBUG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
 
     if (strncmp(req->buf, "exit", 4) == 0) {
-        if (write(req->conn_fd, EXIT_MSG, 18) < 0) {
-            ERR_EXIT("write error");
-        }
+        WRITE(req->conn_fd, EXIT_MSG, 18);
         return 0;
     }
-    return len - 1;
+    return len;
 }

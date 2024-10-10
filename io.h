@@ -18,6 +18,24 @@ extern const char* const WRITE_SHIFT_MSG;
 extern const char* const WRITE_SEAT_MSG;
 extern const char* const WRITE_SEAT_OR_EXIT_MSG;
 
-int handle_input(Request* req);
+// If `s` represents a valid seat number, converts it to an integer and returns it. Otherwise returns -1.
+int seat_str_to_int(const char* s, int len);
+
+// If `s` represents a valid shift number, converts it to its corresponding id and returns it. Otherwise returns -1.
+int shift_str_to_id(const char* s, int len);
+
+// Tries to read a command from the connection, and moves it into `req->buf`.
+// Returns the number of bytes moved if successful, 0 if reached EOF (meaning client is down), and -1 if an error has
+// occurred.
+int read_command(Request* req);
+
+#define READ_COMMAND(req)                  \
+    do {                                   \
+        int ret = read_command(req);       \
+        DEBUG("read_command ret=%d", ret); \
+        if (ret <= 0) {                    \
+            return ret;                    \
+        }                                  \
+    } while (0)
 
 #endif  // INPUT_H_
