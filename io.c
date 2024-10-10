@@ -23,37 +23,48 @@ const char* const WRITE_SEAT_MSG = "Select the seat [1-40] or type \"pay\" to co
 const char* const WRITE_SEAT_OR_EXIT_MSG = "Type \"seat\" to continue or \"exit\" to quit [seat/exit]: ";
 
 // Reads from the conenction, and moves the data read into `req->buf`.
-// Returns 1 if data is successfully read, 0 if reached EOF (meaning client is down), and -1 if an error has occurred.
+// Returns the number of bytes copied in to the buffer if successful, 0 if reached EOF (meaning client is down), and -1
+// if an error has occurred.
 int handle_input(Request* req) {
-    char buf[MAX_MSG_LEN + 1];
+    char buf[MAX_MSG_LEN];
     memset(buf, 0, sizeof(buf));
+    int len = 0;
+    // Keep reading until '\n' is read or message is longer than `MAX_MSG_LEN`.
+    while (1) {
+        // Read in request from client.
+        int ret = read(req->conn_fd, buf + len, MAX_MSG_LEN - len);
+        if (ret < 0) {
+            return -1;
+        }
+        if (ret == 0) {
+            return 0;
+        }
+        len += ret;
+        DEBUG("buf=%s,len=%d", buf, len);
 
-    // Read in request from client.
-    int ret = read(req->conn_fd, buf, sizeof(buf));
-    if (ret < 0) {
-        return -1;
-    }
-    if (ret == 0) {
-        return 0;
-    }
-
-    // Look for line endings.
-    char* p1 = strstr(buf, "\r\n");  // \r\n
-    if (p1 == NULL) {
-        p1 = strstr(buf, "\n");  // \n
-        if (p1 == NULL) {
-            if (!strncmp(buf, IAC_IP, 2)) {
-                // Client presses ctrl+C, regard as disconnection
-                fprintf(stderr, "Client pressed Ctrl+C....\n");
-                return 0;
-            }
+        if (buf[len - 1] == '\n') {
+            DEBUG("len=%d,EOL reached", len);
+            --len;  // Discard '\n'
+            break;
+        }
+        if (len >= 2 && strncmp(buf + len - ret, IAC_IP, 2) == 0) {
+            // Client presses ctrl+C, regard as disconnection
+            DEBUG("Client pressed Ctrl+C....");
+            return 0;
+        }
+        // We have reached `MAX_MSG_LEN` without seeing an EOL.
+        if (len == MAX_MSG_LEN) {
+            return -1;
         }
     }
 
-    size_t len = p1 - buf + 1;
+    // Discard '\r'.
+    if (buf[len - 1] == '\r') {
+        --len;
+    }
     memmove(req->buf, buf, len);
-    req->buf[len - 1] = '\0';
-    req->buf_len = len - 1;
+    req->buf[len] = '\0';
+    req->buf_len = len;
     DEBUG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
 
     if (strncmp(req->buf, "exit", 4) == 0) {
@@ -62,6 +73,5 @@ int handle_input(Request* req) {
         }
         return 0;
     }
-
-    return 1;
+    return len - 1;
 }
