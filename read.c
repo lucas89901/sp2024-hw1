@@ -10,8 +10,8 @@
 
 // Writes the seat map of a shift to the connection.
 static void write_shift(const Request* const req) {
-    char buf[SHIFT_INFO_LEN];
-    memset(buf, 0, SHIFT_INFO_LEN);
+    char buf[SHIFT_INFO_LEN + 10];
+    memset(buf, 0, SHIFT_INFO_LEN + 10);
     for (int i = 1; i <= SEAT_NUM; ++i) {
         char c;
         switch (seat_status(req, i)) {
@@ -47,7 +47,7 @@ void write_prompt(const Request* const req) {
 int handle_command(Request* const req, Shift* const shifts) {
     switch (req->status) {
         case kShiftSelection:;
-            int shift_id = shift_str_to_id(req->cmd, req->cmd_len);
+            int shift_id = shift_str_to_id(req->buf, req->buf_len);
             if (shift_id < 0) {
                 return -1;
             }

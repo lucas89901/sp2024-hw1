@@ -43,7 +43,7 @@ int handle_command(Request* const req, Shift* const shifts) {
     LOG("req->status=%d", req->status);
     switch (req->status) {
         case kShiftSelection:;
-            int shift_id = shift_str_to_id(req->cmd, req->cmd_len);
+            int shift_id = shift_str_to_id(req->buf, req->buf_len);
             if (shift_id < 0) {
                 return -1;
             }
@@ -57,7 +57,7 @@ int handle_command(Request* const req, Shift* const shifts) {
             return 0;
 
         case kSeatSelection:
-            if (strncmp(req->cmd, "pay", 3) == 0) {
+            if (strncmp(req->buf, "pay", 3) == 0) {
                 if (req->reserved_seat_num == 0) {
                     write_message(req, kPaymentNoSeat);
                     return 0;
@@ -74,7 +74,7 @@ int handle_command(Request* const req, Shift* const shifts) {
                 return 0;
             }
 
-            int seat = seat_str_to_int(req->cmd, req->cmd_len);
+            int seat = seat_str_to_int(req->buf, req->buf_len);
             if (seat == -1) {
                 return -1;
             }
@@ -98,7 +98,7 @@ int handle_command(Request* const req, Shift* const shifts) {
             return 0;
 
         case kPostPayment:
-            if (strncmp(req->cmd, "seat", 4) == 0) {
+            if (strncmp(req->buf, "seat", 4) == 0) {
                 req->status = kSeatSelection;
                 return 0;
             }

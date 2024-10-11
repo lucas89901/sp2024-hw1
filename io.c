@@ -128,7 +128,7 @@ void write_message(const Request* const req, Message message) {
 
 int read_connection(Request* const req, Shift* const shifts) {
     // Read data from connection.
-    int ret = read(req->conn_fd, req->buf + req->buf_len, REQUEST_BUFFER_LEN - req->buf_len);
+    int ret = read(req->conn_fd, req->buf + req->buf_len, MAX_MSG_LEN - req->buf_len);
     if (ret < 0) {
         return -1;
     }
@@ -141,29 +141,29 @@ int read_connection(Request* const req, Shift* const shifts) {
 
     // Handle available commands.
     while (1) {
-        if (req->buf + req->buf_len - req->cmd > 2 && strncmp(req->cmd, IAC_IP, 2) == 0) {
+        if (ret > 2 && strncmp(req->buf + req->buf_len - ret, IAC_IP, 2) == 0) {
             // Client presses ctrl+C, regard as disconnection
             LOG("Client pressed Ctrl+C....");
             return 0;
         }
 
         // Check if buffer contains a complete command.
-        char* eol = strchr(req->cmd, '\n');
+        char* eol = strchr(req->buf, '\n');
         if (eol == NULL) {
-            if (eol - req->cmd > MAX_MSG_LEN) {
+            if (req->buf_len >= MAX_MSG_LEN) {
                 return -1;  // Command too long.
             }
             return 2;  // Partial command.
         }
-        char* next_cmd = eol + 1;
-        if (eol > req->buf && *(eol - 1) == '\r') {
-            --eol;
+        // A command is found.
+        --req->buf_len;                              // Discard '\n'.
+        if (eol > req->buf && *(eol - 1) == '\r') {  // Discard '\r' if exists.
+            --req->buf_len;
         }
-        *eol = '\0';
-        req->cmd_len = eol - req->cmd;
-        LOG("req->cmd=%s,req->cmd_len=%ld", req->cmd, req->cmd_len);
+        req->buf[req->buf_len] = '\0';
+        LOG("command found,req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
 
-        if (strncmp(req->cmd, "exit", 4) == 0) {
+        if (strncmp(req->buf, "exit", 4) == 0) {
             write_message(req, kExit);
             return 0;
         }
@@ -177,9 +177,7 @@ int read_connection(Request* const req, Shift* const shifts) {
                 write_prompt(req);
                 break;
         }
-
-        req->cmd = next_cmd;
-        req->cmd_len = 0;
+        req->buf_len = 0;
         return 1;
     }
 }

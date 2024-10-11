@@ -8,8 +8,6 @@
 
 #include "common.h"
 
-#define REQUEST_BUFFER_LEN (MAX_MSG_LEN * 10)
-
 typedef struct Shift Shift;
 
 typedef enum RequestStatus {
@@ -23,11 +21,8 @@ typedef struct Request {
     int conn_fd;     // fd to talk with client
     int client_id;   // client's id
 
-    char buf[REQUEST_BUFFER_LEN];  // data sent by/to client;
-    size_t buf_len;                // bytes used by buf
-
-    char* cmd;
-    size_t cmd_len;
+    char buf[MAX_MSG_LEN + 10];  // data sent by/to client;
+    size_t buf_len;              // bytes used by buf
 
     RequestStatus status;  // request status
 
