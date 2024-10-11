@@ -7,7 +7,8 @@
 #include "request.h"
 #include "shift.h"
 
-static int print_booking_info(const Request* const req) {
+// Writes booking info to the connection.
+static void write_booking_info(const Request* const req) {
     char buf[1000];
     char reserved_seats[200];
     char paid_seats[200];
@@ -22,7 +23,6 @@ static int print_booking_info(const Request* const req) {
             "|- Paid: %s\n\n",
             902001 + req->shift->id, reserved_seats, paid_seats);
     WRITE(req->conn_fd, buf, sizeof(buf));
-    return 0;
 }
 
 void write_prompt(const Request* const req) {
@@ -32,7 +32,7 @@ void write_prompt(const Request* const req) {
             return;
 
         case kSeatSelection:
-            print_booking_info(req);
+            write_booking_info(req);
             WRITE(req->conn_fd, WRITE_SEAT_MSG, 50);
             return;
 
@@ -71,7 +71,7 @@ int handle_command(Request* const req, Shift* const shifts) {
                     }
                 }
                 WRITE(req->conn_fd, BOOK_SUCC_MSG, 39);
-                print_booking_info(req);
+                write_booking_info(req);
                 req->status = kPayment;
                 return 0;
             }

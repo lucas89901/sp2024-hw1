@@ -77,26 +77,6 @@ void join_seats(char* buf, const int* const holders, const Request* const req) {
     buf[pos] = '\0';
 }
 
-void print_shift(char* buf, const Request* const req) {
-    for (int i = 1; i <= SEAT_NUM; ++i) {
-        char c;
-        switch (seat_status(req, i)) {
-            case kAvailable:
-                c = '0';
-                break;
-            case kPaid:
-                c = '1';
-                break;
-            case kReservedByOtherProcess:
-            case kReservedByThisRequest:
-            case kReservedByOtherRequest:
-                c = '2';
-                break;
-        }
-        sprintf(buf + seat_to_byte(i), "%c%c", c, " \n"[i % 4 == 0]);
-    }
-}
-
 int read_connection(Request* const req, Shift* const shifts) {
     // Read data from connection.
     int ret = read(req->conn_fd, req->buf + req->buf_len, REQUEST_BUFFER_LEN - req->buf_len);

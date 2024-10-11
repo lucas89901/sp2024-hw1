@@ -29,15 +29,13 @@ int shift_str_to_id(const char* s, int len);
 // by its `client_id`.
 void join_seats(char* buf, const int* holders, const Request* req);
 
-// Prints the status of a shift into `buf`.
-void print_shift(char* buf, const Request* req);
-
 // Reads and handles currently available data from the request's connection. Returns 1 if the connection should remain
 // open, 0 if the connection should be closed, -1 if an error has occurred.
 int read_connection(Request* req, Shift* shifts);
 
 // =========== read or write dependent ========
 
+// Writes the appropriate prompt to the connection depending on the request's state.
 void write_prompt(const Request* req);
 
 // Handles a command. Returns 0 successful, -1 if an errror has occurred.
