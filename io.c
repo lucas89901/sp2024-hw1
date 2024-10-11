@@ -66,7 +66,7 @@ int seat_str_to_int(const char* const s, const int len) {
     return seat;
 }
 
-void join_seats(char* buf, const int* const holders, const Request* const req) {
+int seats_joined_str(char* buf, const int* const holders, const Request* const req) {
     bool first = true;
     int pos = 0;
     for (int i = 1; i <= SEAT_NUM; ++i) {
@@ -79,7 +79,7 @@ void join_seats(char* buf, const int* const holders, const Request* const req) {
             pos += sprintf(buf + pos, "%d", i);
         }
     }
-    buf[pos] = '\0';
+    return pos;
 }
 
 void write_message(const Request* const req, Message message) {

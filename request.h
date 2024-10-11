@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "common.h"
 
@@ -33,7 +34,7 @@ typedef struct Request {
     Shift* shift;
     int reserved_seat_num;
 
-    struct timeval remaining_time;  // connection remaining time
+    struct timespec receive_time;
 } Request;
 
 // initailize a request instance

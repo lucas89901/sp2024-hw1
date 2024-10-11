@@ -9,12 +9,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "common.h"
 #include "io.h"
 #include "request.h"
 #include "shift.h"
+
+#if defined(DEBUG) && !defined(DEBUG_TIMEOUT)
+#define CONNECTION_TIMEOUT 100000.0
+#else
+#define CONNECTION_TIMEOUT 5.0
+#endif
 
 static const char* FILE_PREFIX = "./csie_trains/train_";
 
@@ -73,7 +80,7 @@ static int accept_conn(Server* svr, Request* requests, struct pollfd* pollfds, i
     if (conn_fd < 0) {
         if (errno == EINTR || errno == EAGAIN) return -1;  // try again
         if (errno == ENFILE) {
-            (void)fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", getdtablesize());
+            LOG("out of file descriptor table ... (maxconn %d)", getdtablesize());
             return -1;
         }
         ERR_EXIT("accept");
@@ -82,9 +89,14 @@ static int accept_conn(Server* svr, Request* requests, struct pollfd* pollfds, i
     init_request(&requests[conn_fd]);
     requests[conn_fd].conn_fd = conn_fd;
     strcpy(requests[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
-    fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requests[conn_fd].host);
+    LOG("Accept request, fd %d from %s", conn_fd, requests[conn_fd].host);
     requests[conn_fd].client_id = (svr->port * 1000) + svr->num_conn;  // This should be unique for the same machine.
     ++svr->num_conn;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &requests[conn_fd].receive_time) < 0) {
+        ERR_EXIT("clock_gettime");
+    }
+    LOG("tv_sec=%ld, tv_nsec=%ld", requests[conn_fd].receive_time.tv_sec, requests[conn_fd].receive_time.tv_nsec);
 
     // Add new connection to `pollfds`.
     int pollfd_target = *pollfds_size;
@@ -106,6 +118,14 @@ static int accept_conn(Server* svr, Request* requests, struct pollfd* pollfds, i
     write_message(&requests[conn_fd], kWelcomeBanner);
     write_prompt(&requests[conn_fd]);
     return conn_fd;
+}
+
+void close_conn(Request* req, struct pollfd* pollfd) {
+    LOG("Close connection, fd=%d", pollfd->fd);
+    cleanup_request(req);
+    close(pollfd->fd);
+    pollfd->fd = -1;
+    pollfd->events = 0;
 }
 
 int main(int argc, char** argv) {
@@ -154,9 +174,27 @@ int main(int argc, char** argv) {
 
     // Loop for handling connections
     while (1) {
+        // Close connections that have timed-out.
+        for (int i = 0; i < pollfds_size; ++i) {
+            if (pollfds[i].fd < 0) {
+                continue;
+            }
+            Request* req = &requests[pollfds[i].fd];
+            struct timespec now;
+            if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
+                ERR_EXIT("clock_gettime");
+            }
+            if ((double)(now.tv_sec - req->receive_time.tv_sec) + (now.tv_nsec - req->receive_time.tv_nsec) / 1e9 >=
+                CONNECTION_TIMEOUT) {
+                LOG("connection %d has timed out", pollfds[i].fd);
+                close_conn(req, &pollfds[i]);
+            }
+        }
+
         // Check for new connections.
         int conn_fd = accept_conn(&svr, requests, pollfds, &pollfds_size, maxfd);
 
+        // Poll for ready connections.
         int ready = poll(pollfds, pollfds_size, 10);
         if (ready < 0) {
             ERR_EXIT("poll");
@@ -174,11 +212,7 @@ int main(int argc, char** argv) {
             int ret = read_connection(req, shifts);
             LOG("read_connection ret=%d", ret);
             if (ret <= 0) {
-                close(req->conn_fd);
-                pollfds[i].fd = -1;
-                pollfds[i].events = 0;
-                cleanup_request(req);
-                continue;
+                close_conn(req, &pollfds[i]);
             }
         }
     }

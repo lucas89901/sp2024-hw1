@@ -8,21 +8,20 @@
 #include "shift.h"
 
 // Writes booking info to the connection.
-static void write_booking_info(const Request* const req) {
-    char buf[1000];
-    char reserved_seats[200];
-    char paid_seats[200];
-    memset(buf, 0, sizeof(buf));
-    join_seats(reserved_seats, req->shift->reserver, req);
-    join_seats(paid_seats, req->shift->payer, req);
-
-    sprintf(buf,
-            "\nBooking info\n"
-            "|- Shift ID: %d\n"
-            "|- Chose seat(s): %s\n"
-            "|- Paid: %s\n\n",
-            902001 + req->shift->id, reserved_seats, paid_seats);
-    WRITE(req->conn_fd, buf, sizeof(buf));
+static int write_booking_info(const Request* const req) {
+    char buf[400];
+    int len = 0;
+    len += sprintf(buf + len,
+                   "\nBooking info"
+                   "\n|- Shift ID: %d"
+                   "\n|- Chose seat(s): ",
+                   902001 + req->shift->id);
+    len += seats_joined_str(buf + len, req->shift->reserver, req);
+    len += sprintf(buf + len, "\n|- Paid: ");
+    len += seats_joined_str(buf + len, req->shift->payer, req);
+    len += sprintf(buf + len, "\n\n");
+    WRITE(req->conn_fd, buf, len);
+    return len;
 }
 
 void write_prompt(const Request* const req) {
@@ -41,6 +40,7 @@ void write_prompt(const Request* const req) {
 }
 
 int handle_command(Request* const req, Shift* const shifts) {
+    LOG("req->status=%d", req->status);
     switch (req->status) {
         case kShiftSelection:;
             int shift_id = shift_str_to_id(req->cmd, req->cmd_len);

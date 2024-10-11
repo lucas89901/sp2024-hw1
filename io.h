@@ -10,9 +10,9 @@ int seat_str_to_int(const char* s, int len);
 // If `s` represents a valid shift number, converts it to its corresponding id and returns it. Otherwise returns -1.
 int shift_str_to_id(const char* s, int len);
 
-// Returns indexs of all seats whose reserver or payer is `req`, joined into a string with ','. `req` is identified
-// by its `client_id`.
-void join_seats(char* buf, const int* holders, const Request* req);
+// Joins indexs of all seats whose reserver or payer is `req` into a string with ',', and copies it into `buf`. `req` is
+// identified by its `client_id`. Returns the number of characters written.
+int seats_joined_str(char* buf, const int* holders, const Request* req);
 
 typedef enum Message {
     kWelcomeBanner = 0,

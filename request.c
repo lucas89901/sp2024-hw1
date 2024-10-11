@@ -18,9 +18,6 @@ void init_request(Request* req) {
     req->reserved_seat_num = 0;
 
     req->status = kShiftSelection;
-
-    req->remaining_time.tv_sec = 5;
-    req->remaining_time.tv_usec = 0;
 }
 
 void cleanup_request(Request* req) {
