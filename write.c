@@ -28,16 +28,14 @@ static void write_booking_info(const Request* const req) {
 void write_prompt(const Request* const req) {
     switch (req->status) {
         case kShiftSelection:
-            WRITE(req->conn_fd, WRITE_SHIFT_MSG, 59);
+            write_message(req, kWriteShiftPrompt);
             return;
-
         case kSeatSelection:
             write_booking_info(req);
-            WRITE(req->conn_fd, WRITE_SEAT_MSG, 50);
+            write_message(req, kWriteSeatPrompt);
             return;
-
-        case kPayment:
-            WRITE(req->conn_fd, WRITE_SEAT_OR_EXIT_MSG, 56);
+        case kPostPayment:
+            write_message(req, kWritePostPaymentPrompt);
             return;
     }
 }
@@ -52,7 +50,7 @@ int handle_command(Request* const req, Shift* const shifts) {
             req->shift = &shifts[shift_id];
 
             if (shift_is_full(req)) {
-                WRITE(req->conn_fd, FULL_MSG, 32);
+                write_message(req, kShiftFull);
             } else {
                 req->status = kSeatSelection;
             }
@@ -61,7 +59,7 @@ int handle_command(Request* const req, Shift* const shifts) {
         case kSeatSelection:
             if (strncmp(req->cmd, "pay", 3) == 0) {
                 if (req->reserved_seat_num == 0) {
-                    WRITE(req->conn_fd, NO_SEAT_MSG, 21);
+                    write_message(req, kPaymentNoSeat);
                     return 0;
                 }
                 for (int i = 1; i <= SEAT_NUM; ++i) {
@@ -70,9 +68,9 @@ int handle_command(Request* const req, Shift* const shifts) {
                         cancel_seat(req, i);
                     }
                 }
-                WRITE(req->conn_fd, BOOK_SUCC_MSG, 39);
+                write_message(req, kPaymentSuccess);
                 write_booking_info(req);
-                req->status = kPayment;
+                req->status = kPostPayment;
                 return 0;
             }
 
@@ -86,20 +84,20 @@ int handle_command(Request* const req, Shift* const shifts) {
                     reserve_seat(req, seat);
                     break;
                 case kPaid:
-                    WRITE(req->conn_fd, SEAT_BOOKED_MSG, 25);
+                    write_message(req, kSeatBooked);
                     break;
                 case kReservedByOtherProcess:
                 case kReservedByOtherRequest:
-                    WRITE(req->conn_fd, LOCK_MSG, 13);
+                    write_message(req, kSeatLocked);
                     break;
                 case kReservedByThisRequest:
-                    WRITE(req->conn_fd, CANCEL_MSG, 26);
+                    write_message(req, kSeatCancel);
                     cancel_seat(req, seat);
                     break;
             }
             return 0;
 
-        case kPayment:
+        case kPostPayment:
             if (strncmp(req->cmd, "seat", 4) == 0) {
                 req->status = kSeatSelection;
                 return 0;

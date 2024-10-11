@@ -14,7 +14,7 @@ typedef struct Shift Shift;
 typedef enum RequestStatus {
     kShiftSelection = 0,
     kSeatSelection,
-    kPayment,
+    kPostPayment,
 } RequestStatus;
 
 typedef struct Request {

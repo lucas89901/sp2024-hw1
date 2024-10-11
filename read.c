@@ -35,7 +35,7 @@ static void write_shift(const Request* const req) {
 void write_prompt(const Request* const req) {
     switch (req->status) {
         case kShiftSelection:
-            WRITE(req->conn_fd, READ_SHIFT_MSG, 60);
+            write_message(req, kReadShiftPrompt);
             return;
 
         default:

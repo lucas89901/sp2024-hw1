@@ -17,10 +17,6 @@
 #include "shift.h"
 
 static const char* FILE_PREFIX = "./csie_trains/train_";
-static const char* WELCOME_BANNER =
-    "======================================\n"
-    " Welcome to CSIE Train Booking System \n"
-    "======================================\n";
 
 // initailize a server, exit for error
 static void init_server(Server* svr, unsigned short port, Request* requests) {
@@ -107,7 +103,7 @@ static int accept_conn(Server* svr, Request* requests, struct pollfd* pollfds, i
         ++(*pollfds_size);
     }
 
-    WRITE(conn_fd, WELCOME_BANNER, 118);
+    write_message(&requests[conn_fd], kWelcomeBanner);
     write_prompt(&requests[conn_fd]);
     return conn_fd;
 }
