@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
             Request* req = &requests[pollfds[i].fd];
             bool cleanup = false;
             int ret = read_connection(req, shifts);
-            DEBUG("read_connection ret=%d", ret);
+            LOG("read_connection ret=%d", ret);
             if (ret <= 0) {
                 close(req->conn_fd);
                 pollfds[i].fd = -1;

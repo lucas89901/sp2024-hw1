@@ -136,14 +136,14 @@ int read_connection(Request* const req, Shift* const shifts) {
         return 0;
     }
     req->buf_len += ret;
-    DEBUG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
+    LOG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
     req->buf[req->buf_len] = '\0';  // Mark current end of buffer.
 
     // Handle available commands.
     while (1) {
         if (req->buf + req->buf_len - req->cmd > 2 && strncmp(req->cmd, IAC_IP, 2) == 0) {
             // Client presses ctrl+C, regard as disconnection
-            DEBUG("Client pressed Ctrl+C....");
+            LOG("Client pressed Ctrl+C....");
             return 0;
         }
 
@@ -161,14 +161,14 @@ int read_connection(Request* const req, Shift* const shifts) {
         }
         *eol = '\0';
         req->cmd_len = eol - req->cmd;
-        DEBUG("req->cmd=%s,req->cmd_len=%ld", req->cmd, req->cmd_len);
+        LOG("req->cmd=%s,req->cmd_len=%ld", req->cmd, req->cmd_len);
 
         if (strncmp(req->cmd, "exit", 4) == 0) {
             write_message(req, kExit);
             return 0;
         }
         int ret = handle_command(req, shifts);
-        DEBUG("handle_command ret=%d", ret);
+        LOG("handle_command ret=%d", ret);
         switch (ret) {
             case -1:
                 write_message(req, kInvalidOp);

@@ -78,7 +78,7 @@ int handle_command(Request* const req, Shift* const shifts) {
             if (seat == -1) {
                 return -1;
             }
-            DEBUG("seat=%d, seat_status=%d", seat, seat_status(req, seat));
+            LOG("seat=%d, seat_status=%d", seat, seat_status(req, seat));
             switch (seat_status(req, seat)) {
                 case kAvailable:
                     reserve_seat(req, seat);

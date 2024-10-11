@@ -20,10 +20,14 @@
 #define FILE_LEN 50
 #define MAX_MSG_LEN 512
 
-#define DEBUG(...)                                   \
+#ifdef DEBUG
+#define LOG(...)                                     \
     fprintf(stderr, "[%s:%d] ", __FILE__, __LINE__); \
     fprintf(stderr, __VA_ARGS__);                    \
     fprintf(stderr, "\n")
+#else
+#define LOG(...)
+#endif
 
 #define READ(fd, buf, count)            \
     do {                                \
