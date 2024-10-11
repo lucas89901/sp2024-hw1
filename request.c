@@ -9,10 +9,15 @@ void init_request(Request* req) {
 
     req->conn_fd = -1;
     req->client_id = -1;
+
     req->buf_len = 0;
+    req->cmd = req->buf;
+    req->cmd_len = 0;
 
     req->shift = NULL;
     req->reserved_seat_num = 0;
+
+    req->status = kShiftSelection;
 
     req->remaining_time.tv_sec = 5;
     req->remaining_time.tv_usec = 0;

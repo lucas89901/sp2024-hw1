@@ -97,51 +97,60 @@ void print_shift(char* buf, const Request* const req) {
     }
 }
 
-int read_command(Request* req) {
-    char buf[MAX_MSG_LEN];
-    memset(buf, 0, sizeof(buf));
-    int len = 0;
-    // Keep reading until '\n' is read or message is longer than `MAX_MSG_LEN`.
-    while (1) {
-        // Read in request from client.
-        int ret = read(req->conn_fd, buf + len, MAX_MSG_LEN - len);
-        if (ret < 0) {
-            return -1;
-        }
-        if (ret == 0) {
-            return 0;
-        }
-        len += ret;
-        DEBUG("buf=%s,len=%d", buf, len);
+int read_connection(Request* const req, Shift* const shifts) {
+    // Read data from connection.
+    int ret = read(req->conn_fd, req->buf + req->buf_len, REQUEST_BUFFER_LEN - req->buf_len);
+    if (ret < 0) {
+        return -1;
+    }
+    if (ret == 0) {
+        return 0;
+    }
+    req->buf_len += ret;
+    DEBUG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
+    req->buf[req->buf_len] = '\0';  // Mark current end of buffer.
 
-        if (buf[len - 1] == '\n') {
-            DEBUG("len=%d,EOL reached", len);
-            --len;  // Discard '\n'
-            break;
-        }
-        if (ret == 5 && strncmp(buf + len - ret, IAC_IP, 2) == 0) {
+    // Handle available commands.
+    while (1) {
+        if (req->buf + req->buf_len - req->cmd > 2 && strncmp(req->cmd, IAC_IP, 2) == 0) {
             // Client presses ctrl+C, regard as disconnection
             DEBUG("Client pressed Ctrl+C....");
             return 0;
         }
-        // We have reached `MAX_MSG_LEN` without seeing an EOL.
-        if (len == MAX_MSG_LEN) {
-            return -1;
+
+        // Check if buffer contains a complete command.
+        char* eol = strchr(req->cmd, '\n');
+        if (eol == NULL) {
+            if (eol - req->cmd > MAX_MSG_LEN) {
+                return -1;  // Command too long.
+            }
+            return 2;  // Partial command.
         }
-    }
+        char* next_cmd = eol + 1;
+        if (eol > req->buf && *(eol - 1) == '\r') {
+            --eol;
+        }
+        *eol = '\0';
+        req->cmd_len = eol - req->cmd;
+        DEBUG("req->cmd=%s,req->cmd_len=%ld", req->cmd, req->cmd_len);
 
-    // Discard '\r'.
-    if (buf[len - 1] == '\r') {
-        --len;
-    }
-    memmove(req->buf, buf, len);
-    req->buf[len] = '\0';
-    req->buf_len = len;
-    DEBUG("req->buf=%s,req->buf_len=%ld", req->buf, req->buf_len);
+        if (strncmp(req->cmd, "exit", 4) == 0) {
+            WRITE(req->conn_fd, EXIT_MSG, 18);
+            return 0;
+        }
+        int ret = handle_command(req, shifts);
+        DEBUG("handle_command ret=%d", ret);
+        switch (ret) {
+            case -1:
+                WRITE(req->conn_fd, INVALID_OP_MSG, 24);
+                return 0;
+            case 0:
+                write_prompt(req);
+                break;
+        }
 
-    if (strncmp(req->buf, "exit", 4) == 0) {
-        WRITE(req->conn_fd, EXIT_MSG, 18);
-        return 0;
+        req->cmd = next_cmd;
+        req->cmd_len = 0;
+        return 1;
     }
-    return len;
 }

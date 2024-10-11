@@ -32,21 +32,15 @@ void join_seats(char* buf, const int* holders, const Request* req);
 // Prints the status of a shift into `buf`.
 void print_shift(char* buf, const Request* req);
 
-// Tries to read a command from the connection, and moves it into `req->buf`.
-// Returns the number of bytes moved if successful, 0 if reached EOF (meaning client is down), and -1 if an error has
-// occurred.
-int read_command(Request* req);
+// Reads and handles currently available data from the request's connection. Returns 1 if the connection should remain
+// open, 0 if the connection should be closed, -1 if an error has occurred.
+int read_connection(Request* req, Shift* shifts);
 
-// Handle read or write requests, depending on which object you link to.
-int handle_request(Request* req, Shift* shifts);
+// =========== read or write dependent ========
 
-#define READ_COMMAND(req)                  \
-    do {                                   \
-        int ret = read_command(req);       \
-        DEBUG("read_command ret=%d", ret); \
-        if (ret <= 0) {                    \
-            return ret;                    \
-        }                                  \
-    } while (0)
+void write_prompt(const Request* req);
+
+// Handles a command. Returns 0 successful, -1 if an errror has occurred.
+int handle_command(Request* req, Shift* shifts);
 
 #endif  // INPUT_H_

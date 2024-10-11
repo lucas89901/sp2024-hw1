@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,14 @@ static void init_server(Server* svr, unsigned short port, Request* requests) {
         ERR_EXIT("socket");
     }
 
+    int flag = fcntl(svr->listen_fd, F_GETFL);
+    if (flag < 0) {
+        ERR_EXIT("init_server fcntl F_GETFL");
+    }
+    if (fcntl(svr->listen_fd, F_SETFL, flag | O_NONBLOCK) < 0) {
+        ERR_EXIT("init_server fcntl F_SETFL");
+    }
+
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -52,14 +61,14 @@ static void init_server(Server* svr, unsigned short port, Request* requests) {
     init_request(&requests[svr->listen_fd]);
     requests[svr->listen_fd].conn_fd = svr->listen_fd;
     strcpy(requests[svr->listen_fd].host, svr->hostname);
+    svr->num_conn = 1;
 
     fprintf(stderr, "Starting server on %.80s, port %d, fd %d...\n", svr->hostname, svr->port, svr->listen_fd);
 }
 
 // Accepts a new connection.
-// Returns the file descriptor used to communicate with the connection, or -1
-// if an error has occurred.
-static int accept_conn(Server* svr, Request* requests, int* num_conn) {
+// Returns the file descriptor used to communicate with the connection, or -1 if an error has occurred.
+static int accept_conn(Server* svr, Request* requests, struct pollfd* pollfds, int* pollfds_size, const int maxfd) {
     struct sockaddr_in cliaddr;
     size_t clilen = sizeof(cliaddr);
 
@@ -78,8 +87,28 @@ static int accept_conn(Server* svr, Request* requests, int* num_conn) {
     requests[conn_fd].conn_fd = conn_fd;
     strcpy(requests[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
     fprintf(stderr, "getting a new request... fd %d from %s\n", conn_fd, requests[conn_fd].host);
-    requests[conn_fd].client_id = (svr->port * 1000) + *num_conn;  // This should be unique for the same machine.
-    (*num_conn)++;
+    requests[conn_fd].client_id = (svr->port * 1000) + svr->num_conn;  // This should be unique for the same machine.
+    ++svr->num_conn;
+
+    // Add new connection to `pollfds`.
+    int pollfd_target = *pollfds_size;
+    for (int i = 0; i < *pollfds_size; ++i) {
+        if (pollfds[i].events == 0) {
+            pollfd_target = i;
+            break;
+        }
+    }
+    pollfds[pollfd_target].fd = conn_fd;
+    pollfds[pollfd_target].events = POLLIN;
+    if (pollfd_target == *pollfds_size) {
+        if (*pollfds_size == maxfd) {
+            ERR_EXIT("out of fds");
+        }
+        ++(*pollfds_size);
+    }
+
+    WRITE(conn_fd, WELCOME_BANNER, 118);
+    write_prompt(&requests[conn_fd]);
     return conn_fd;
 }
 
@@ -123,24 +152,39 @@ int main(int argc, char** argv) {
     // Initialize server
     Server svr;
     init_server(&svr, (unsigned short)atoi(argv[1]), requests);
-    int num_conn = 1;
+
+    struct pollfd* pollfds = malloc(sizeof(struct pollfd) * maxfd);
+    int pollfds_size = 0;
 
     // Loop for handling connections
     while (1) {
-        // TODO: Add IO multiplexing
-
         // Check for new connections.
-        int conn_fd = accept_conn(&svr, requests, &num_conn);
-        if (conn_fd < 0) {
+        int conn_fd = accept_conn(&svr, requests, pollfds, &pollfds_size, maxfd);
+
+        int ready = poll(pollfds, pollfds_size, 10);
+        if (ready < 0) {
+            ERR_EXIT("poll");
+        }
+        if (ready == 0) {
             continue;
         }
+        for (int i = 0; i < pollfds_size; ++i) {
+            if (!(pollfds[i].revents & POLLIN)) {
+                continue;
+            }
 
-        write(conn_fd, WELCOME_BANNER, 118);
-        int ret = handle_request(&requests[conn_fd], shifts);
-        DEBUG("handle_request ret=%d", ret);
-
-        close(conn_fd);
-        cleanup_request(&requests[conn_fd]);
+            Request* req = &requests[pollfds[i].fd];
+            bool cleanup = false;
+            int ret = read_connection(req, shifts);
+            DEBUG("read_connection ret=%d", ret);
+            if (ret <= 0) {
+                close(req->conn_fd);
+                pollfds[i].fd = -1;
+                pollfds[i].events = 0;
+                cleanup_request(req);
+                continue;
+            }
+        }
     }
 
     close(svr.listen_fd);
