@@ -88,27 +88,3 @@ void pay_seat(Request* const req, const int seat) {
     WRITE(req->shift->fd, "1", 1);
     req->shift->payer[seat] = req->client_id;
 }
-
-// int lock_shift(const int shift_fd) {
-//     struct flock flock;
-//     flock.l_type = F_RDLCK;
-//     flock.l_whence = SEEK_SET;
-//     flock.l_start = 0;
-//     flock.l_len = 0;
-//     if (fcntl(shift_fd, F_SETLK, &flock) < 0) {
-//         return -1;
-//     }
-//     return 0;
-// }
-
-// int unlock_shift(const int shift_fd) {
-//     struct flock flock;
-//     flock.l_type = F_UNLCK;
-//     flock.l_whence = SEEK_SET;
-//     flock.l_start = 0;
-//     flock.l_len = 0;
-//     if (fcntl(shift_fd, F_SETLK, &flock) < 0) {
-//         return -1;
-//     }
-//     return 0;
-// }

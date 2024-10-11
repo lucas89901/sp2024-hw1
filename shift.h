@@ -37,7 +37,4 @@ void reserve_seat(Request* req, int seat);
 void cancel_seat(Request* req, int seat);
 void pay_seat(Request* req, int seat);
 
-// int lock_shift(int shift_fd);
-// int unlock_shift(int shift_fd);
-
 #endif  // SHIFT_H_
